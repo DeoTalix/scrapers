@@ -2,17 +2,7 @@ from requests import get
 from bs4 import BeautifulSoup as bs
 from re import search, compile
 #import time
-#from threading import Thread
-
-field_selectors = {
-    'id': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-right > div.item-view-info.js-item-view-info.js-sticky-fallback > div > div.item-view-search-info-redesign > span',
-    'header': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-title-info.js-item-view-title-info > div > div.title-info-main > h1 > span',
-    'description': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-main.js-item-view-main > div:nth-child(3) > div > div > p',
-    'price': '#price-value > span > span.js-item-price',
-    'employer': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-right > div.item-view-info.js-item-view-info.js-sticky-fallback > div > div.item-view-seller-info.js-item-view-seller-info > div > div.seller-info-prop.js-seller-info-prop_seller-name.seller-info-prop_layout-two-col > div.seller-info-col > div:nth-child(1) > div > a',
-    'img': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-main.js-item-view-main > div.item-view-block.item-view-layout.item-view-layout_type-two-col > div.item-view-gallery.item-view-gallery_type-one-img > div.gallery.gallery_state-clicked.js-gallery.gallery_type-small > div > div > div > div > img'
-}
-
+from threading import Thread
 
 domen = 'https://www.avito.ru/'
 
@@ -35,39 +25,57 @@ if '?' in s_url:
 response = get(s_url)
 page = bs(response.text, 'html.parser')
 
-pager = page.find_all(class_=compile('pagination-root'))
+pager_selector = compile('pagination-root') #doesn't work with page.select('')
+last_page_selector = 'span:nth-last-child(2)'
+
+pager = page.find_all(class_=pager_selector)
 is_paginated = bool(pager)
 
 if is_paginated:
     pager_element = pager[0]
-    last_page = pager_element.select('span:nth-last-child(2)')[0]
+    last_page = pager_element.select(last_page_selector)[0]
     if last_page and last_page.text.isdigit():
         i_last_page_num = int(last_page.text)
 
-css_selector = 'div.item-with-contact h3 > a'
+link_selector = 'div.item-with-contact h3 > a'
 
 l_item_urls = []
 threads = []
 
-def get_item_urls(s_sub_url): 
-    sub_response = get(s_sub_url)
-    sub_page = bs(sub_response.text, 'html.parser')
-    l_links = sub_page.select(css_selector)
-    if l_links:
-        l_item_urls.extend([link.get('href') for link in l_links if link.get('href','')])
+def get_item_urls(s_sub_url, i_try=0): 
+    try:
+        sub_response = get(s_sub_url)
+        sub_page = bs(sub_response.text, 'html.parser')
+        l_links = sub_page.select(link_selector)
+        if l_links:
+            l_item_urls.extend([link.get('href') for link in l_links if link.get('href','')])
+    except Exception as e:
+        print(e)
+        if i_try < 10:
+            get_item_urls(s_sub_url, i_try=i_try+1)
 
 for n in range(i_cur_page_num, i_last_page_num + 1):
     print(n)
     s_sub_url = f'{s_url}?{s_params}&p={n}'
-    get_item_urls(s_sub_url)
-    #t = Thread(target=get_item_urls, args=[s_sub_url])
-    #t.start()
-    #threads.append(t)
+    t = Thread(target=get_item_urls, args=[s_sub_url])
+    t.start()
+    threads.append(t)
+    #get_item_urls(s_sub_url)
 
-#for t in threads:
-#    t.join()
+for t in threads: t.join()
 
 print(len(l_item_urls))
+
+#==================================================================================================
+
+field_selectors = {
+    'id': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-right > div.item-view-info.js-item-view-info.js-sticky-fallback > div > div.item-view-search-info-redesign > span',
+    'header': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-title-info.js-item-view-title-info > div > div.title-info-main > h1 > span',
+    'description': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-main.js-item-view-main > div:nth-child(3) > div > div > p',
+    'price': '#price-value > span > span.js-item-price',
+    'employer': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-right > div.item-view-info.js-item-view-info.js-sticky-fallback > div > div.item-view-seller-info.js-item-view-seller-info > div > div.seller-info-prop.js-seller-info-prop_seller-name.seller-info-prop_layout-two-col > div.seller-info-col > div:nth-child(1) > div > a',
+    'img': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-left > div.item-view-main.js-item-view-main > div.item-view-block.item-view-layout.item-view-layout_type-two-col > div.item-view-gallery.item-view-gallery_type-one-img > div.gallery.gallery_state-clicked.js-gallery.gallery_type-small > div > div > div > div > img'
+}
 
 def get_item_info(item_url):
     item_response = get(item_url)
@@ -82,18 +90,23 @@ def get_item_info(item_url):
     doc.append(item_info)
 
 doc = []
-#threads = []
+threads = []
 
 for item_url in l_item_urls:
     item_url = domen + item_url
     print(item_url)
-    #t = Thread(target=get_item_info, args=[item_url])
-    #t.start()
-    #threads.append(t)
-    get_item_info(item_url)
+    t = Thread(target=get_item_info, args=[item_url])
+    t.start()
+    threads.append(t)
+    #get_item_info(item_url)
 
-#for t in threads:
-#    t.join()
+for t in threads: t.join()
 
-with open('test.txt', 'w', encoding='utf-8') as file:
+banned_filename_symbols = '\/:*?<>|"'
+filename = f'{s_url}?{s_params}'
+for symbol in banned_filename_symbols:
+    filename = filename.replace(symbol, '-')
+print(filename)
+
+with open(filename, 'w', encoding='utf-8') as file:
     file.write(str(doc))
