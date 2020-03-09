@@ -16,6 +16,26 @@ recent_page_source = ''
 checkbox = []
 sleep_time = 5
 
+def get_recent_page():
+    global recent_page_source
+    return recent_page_source
+
+def set_recent_page(val):
+    global recent_page_source
+    recent_page_source = val
+
+def get_checkbox():
+    global checkbox
+    return checkbox
+
+def set_checkbox(val):
+    global checkbox
+    checkbox = val
+
+def get_sleep_time():
+    global sleep_time
+    return sleep_time
+
 def set_sleep_time(n):
     global sleep_time
     sleep_time = n
@@ -56,7 +76,7 @@ def erase_data(filepath):
 
 def save_error(exception=None, max_tries=0, sleep_time=0, funcname='', *args, **kwargs):
     # saving error report after max tries in retry decorator been reached
-    global recent_page_source
+    recent_page_source = get_recent_page()
     s_date = str(datetime.now())
     report = f"{s_date=}\n{funcname=}; {args=}; {kwargs=}\n{max_tries=}; {sleep_time=}\n{str(exception)=}\n"
     report += f"{recent_page_source=}\n"
@@ -67,7 +87,7 @@ def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
     # decorator function for handling most web request
     def taker(func):
         def wrapper(*args, **kwargs):
-            global sleep_time
+            sleep_time = get_sleep_time()
             exc = None
             for n in range(max_tries):
                 try:
@@ -77,7 +97,7 @@ def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
                         log(f'Exception in {func.__name__}: {e}\n {n+1} try of {max_tries}')
                     if sleep_time:
                         log(f'next try in {sleep_time} seconds')
-                        sleep(sleep_time*sleep_multiplier)
+                        sleep(sleep_time * sleep_multiplier)
                     exc = e
             if save:
                 save_error(
@@ -97,7 +117,7 @@ def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
 def get_page(url, proxy='', timeout=300, bot=None):
     # getting page source of given url
     # global recent_page_source
-    global set_sleep_time
+    # global set_sleep_time
     if bot:
         bot.go_to(url)
         page_source = bot.get_page_source()
@@ -113,7 +133,7 @@ def get_page(url, proxy='', timeout=300, bot=None):
         page_source = response.text
     page = bs(page_source, 'html.parser')
     if page.find('body'):
-        recent_page_source = page.body.text
+        set_recent_page(page.body.text)
     assert page_source, 'Пустая страница'
     assert '502 Bad Gateway' not in page_source, '502 Bad Gateway'
     if 'Проверьте настройки прокси' in page_source: 
@@ -321,7 +341,7 @@ def main(proxy, s_user_url, domain, session=0):
     log('Готово')
 
 if __name__ == '__main__':
-    erase_data('errors.txt')
+    # erase_data('errors.txt')
     s_user_url, domain = get_user_input()
 
     check_connection(s_user_url, timeout=30)
