@@ -7,7 +7,7 @@ I suggest to use VPN (i use ProtonVPN) if your IP has been blocked, that would b
 ## webbot py
 
 webbot.py is a source code clone from [here](https://github.com/nateshmbhat/webbot). Thanks to this guy.
-File was modified to define another `driverpath` for your driver to overcome some issues with pyinstaller, also logg output made less verbose.
+File was modified to define another `driverpath` for your webdriver to overcome some issues with pyinstaller, also logg output made less verbose.
 
 ## avito_scraper.py
 
