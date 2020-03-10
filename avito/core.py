@@ -8,29 +8,24 @@ from sys import exc_info
 from utils import log, save_error
 from settings import SLEEP_TIME, TIMEOUT
 
-recent_page_source = ''
+# recentrecent_page_source = ''
+IP_ERROR = False
 
-def get_recent_page():
-    global recent_page_source
-    return recent_page_source
+def get_global(name):
+    value = globals().get(name)
+    #log('get', name, value)
+    return value
 
-def set_recent_page(val):
-    global recent_page_source
-    recent_page_source = val
-
-def get_sleep_time():
-    global SLEEP_TIME
-    return SLEEP_TIME
-
-def set_sleep_time(n):
-    global SLEEP_TIME
-    SLEEP_TIME = n
+def set_global(name, val):
+    #log('set', name, val)
+    if name in globals():
+        globals()[name] = val
 
 def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
     # decorator function for handling most web request
     def taker(func):
         def wrapper(*args, **kwargs):
-            sleep_time = get_sleep_time() * sleep_multiplier
+            sleep_time = get_global('SLEEP_TIME') * sleep_multiplier
             message = []
             for n in range(max_tries):
                 try:
@@ -43,6 +38,8 @@ def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
                         log(*message, sep='\n')
                     if sleep_time:
                         sleep(sleep_time)
+                if get_global('IP_ERROR'): 
+                    break
             if save and message:
                 save_error(*message, sep='\n')
             if quit:
@@ -51,8 +48,9 @@ def retry(max_tries=3, sleep_multiplier=0, silent=False, save=True, quit=False):
     return taker
 
 @retry(max_tries=2, sleep_multiplier=1)
-def get_page(url, proxy='', timeout_multiplier=10, bot=None):
+def get_page(url, proxy='', timeout_multiplier=3, bot=None):
     if bot:
+        bot.set_page_load_timeout(TIMEOUT*timeout_multiplier)
         bot.go_to(url)
         page_source = bot.get_page_source()
     else:
@@ -66,31 +64,36 @@ def get_page(url, proxy='', timeout_multiplier=10, bot=None):
         sleep(1)
         page_source = response.text
     page = bs(page_source, 'html.parser')
-    if page.find('body'):
-        set_recent_page(page.body.text)
+    #if page.find('body'):
+    #    set_global('recent_page_source', page.body.text)
     assert page_source, 'Пустая страница'
     assert '502 Bad Gateway' not in page_source, '502 Bad Gateway'
     if 'Проверьте настройки прокси' in page_source: 
-        set_sleep_time(0)
+        set_global('SLEEP_TIME', 0)
+        set_global('IP_ERROR', True)
         raise Exception('Ошибка прокси')
     if 'Мы были вынуждены временно заблокировать доступ к сайту' in page_source:
-        set_sleep_time(0)
+        set_global('SLEEP_TIME', 0)
+        set_global('IP_ERROR', True)
         raise Exception('Ваш IP заблокирован. Смените прокси сервер.' )
     return page
 
-def check_connection(url, proxy='', timeout_multiplier=10):
+def check_connection(url, proxy='', timeout_multiplier=3):
     # check for internet connection
     log('Проверка подключения к интернету')
     assert get_page(url, proxy=proxy, timeout_multiplier=timeout_multiplier), 'Bad connection'
 
-@retry(max_tries=3, sleep_multiplier=1, silent=True, save=False, quit=True)
+# @retry(max_tries=1, sleep_multiplier=1, silent=False, save=False, quit=True)
 def check_app_status(app_key=0):
     # check if app is allowed to run
     page = get_page(f'https://denisgladunov.pythonanywhere.com/{app_key}')
     status = 0
     if page and page.text.isdigit():
         status = int(page.text)
-    assert status, 'Доступ запрещен, обратитесь к разарботчику приложения. den.brovskiy@gmail.com'
+    if not status:
+        log('Доступ запрещен, обратитесь к разарботчику приложения. den.brovskiy@gmail.com')
+        sleep(5)
+        exit(1)
 
 @retry(max_tries=3, quit=True)
 def get_user_input():
@@ -130,7 +133,7 @@ def get_last_page(s_url, i_cur_page_num, bot=None):
             i_last_page_num = int(last_page.text)
     return i_last_page_num
 
-@retry(max_tries=3, sleep_multiplier=1)
+@retry(max_tries=2, sleep_multiplier=1)
 def get_item_urls(s_page_url, bot=None):
     # getting urls of avito items on each page
     l_item_urls = []
@@ -141,18 +144,20 @@ def get_item_urls(s_page_url, bot=None):
         l_item_urls = [link.get('href') for link in l_links if link.get('href','')]
     return l_item_urls
 
-@retry(max_tries=3, sleep_multiplier=10)
+@retry(max_tries=2, sleep_multiplier=10)
 def walk_pages_and_do(s_url, page_range, func=None, args=[], kwargs={}, bot=None):
     # walking through pages and calling func
     for n in page_range:
         log('страница:', n, 'из', len(page_range))
+        if get_global('IP_ERROR'): 
+            return
         s_page_url = f'{s_url}&p={n}'
         kwargs['s_page_url'] = s_page_url
         yield func(*args, **kwargs)
 
 # extraction of information in each item =========================================================
 
-@retry(max_tries=3, sleep_multiplier=1)
+@retry(max_tries=2, sleep_multiplier=1)
 def get_employer_address(url, field_selectors, bot=None):
     assert url, f'Invalid url: {url}'
     log(url)
@@ -164,7 +169,7 @@ def get_employer_address(url, field_selectors, bot=None):
         employer_address = selection[0].text
     return employer_address
 
-@retry(max_tries=3, sleep_multiplier=1)
+@retry(max_tries=2, sleep_multiplier=1)
 def get_item_data(i, domain, item_url, selectors, csv_data = '', bot=None):
     # scraping fields from each item and saving them in csv file
     page_url = domain + item_url
@@ -175,6 +180,8 @@ def get_item_data(i, domain, item_url, selectors, csv_data = '', bot=None):
     item_page = get_page(page_url, bot=bot)
     item_data['avito_url'] = page_url
     for key, selector in selectors.items():
+        if get_global('IP_ERROR'):
+            return
         if key =='employer_address':
             continue
         selection = item_page.select(selector)                
