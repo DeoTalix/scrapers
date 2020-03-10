@@ -10,16 +10,14 @@ from os import chmod, path
 from string import ascii_letters
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 
-# TODO : ADD AN ASSERT TEXT OR ELEMENT FUNCTION
 
- 
 class Browser:
     '''
 
     **Constructor**
 
-    :__init__(showWindow = True):
-        The constructor takes showWindow flag as argument which Defaults to False. If it is set to true, all browser happen without showing up any GUI window.
+    :__init__(headless=False):
+        The constructor takes "headless" flag as an argument which Defaults to False. If it is set to true, all browser happen without showing up any GUI window.
 
 
     Object attributes:  Key, errors
@@ -32,15 +30,14 @@ class Browser:
     
     '''
 
-    def __init__(self, showWindow = True, proxy='', driverpath=''):
+    def __init__(self, headless=False, proxy='', driverpath='.'):
         options = webdriver.ChromeOptions()
+        options.add_argument('log-level=3')
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--no-sandbox")
         if proxy:
             options.add_argument(f'--proxy-server={proxy}')
-
-        if not showWindow:
-            options.set_headless(headless=True)
+        options.set_headless(headless=headless)
 
         if platform == 'linux' or platform == 'linux2':
             driverfilename = 'chrome_linux'
@@ -48,7 +45,7 @@ class Browser:
             driverfilename = 'chrome_windows.exe'
         elif platform == 'darwin':
             driverfilename = 'chrome_mac'
-        driverpath = driverfilename # os.path.join(os.path.split(__file__)[0], 'drivers{0}{1}'.format(os.path.sep, driverfilename))
+        driverpath = path.abspath(f'{driverpath}/{driverfilename}')
 
         chmod(driverpath, 0o755) 
         '''
