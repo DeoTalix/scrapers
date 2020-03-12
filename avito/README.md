@@ -37,7 +37,7 @@ All used proxies are cloned here.
 
 ## errors txt
 
-A place for errors that reaches max tries.
+A place for errors that reach max tries.
 
 ## chrome_windows exe
 
