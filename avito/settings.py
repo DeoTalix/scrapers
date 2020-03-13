@@ -1,13 +1,28 @@
+from typing import Dict, List
+
+
 VERBOSE_LOG = False
+
+# proxy must be formatted: 182.52.238.111:30098
+PROXY = ''
+
 # global sleep time during retry
-SLEEP_TIME = 5
+SLEEP_TIME = 1.0
+
 # global page load timeout
-TIMEOUT = 10
+TIMEOUT = 30
+
 # webbot settings
 USE_BOT = True
+
+HEADLESS = False
+
 WEBDRIVERPATH = '.'
+
 # column names to save in csv
-COLUMN_TITLES = ['id', 'header', 'description', 'price', 'employer', 'employer_address', 'img_url', 'avito_url']
+COLUMN_TITLES = ['id', 'header', 'description', 'price',
+                            'employer', 'employer_address', 'img_url', 'avito_url']
+
 # selectors of elements to scrape from each item (copied straight from chrome dev tools :D)
 SELECTORS = {
     'id': 'body > div.item-view-page-layout.item-view-page-layout_content.item-view-page-layout_responsive > div.l-content.clearfix > div.item-view.js-item-view > div.item-view-content > div.item-view-content-right > div.item-view-info.js-item-view-info.js-sticky-fallback > div > div.item-view-search-info-redesign > span',
